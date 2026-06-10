@@ -1,0 +1,12 @@
+myproject/
+results/
+test_results/
+results_nextflow/
+*.pyc
+__pycache__/
+.DS_Store
+.vscode/
+.idea/
+data/
+refs/
+*.log
