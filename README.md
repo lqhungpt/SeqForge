@@ -5,7 +5,7 @@ FASTP → bwa-mem2 → Shovill/SPAdes → RagTag → Pilon → FastQC → Covera
 
 **You provide raw FASTQ files and a reference genome — everything else is automated.**
 
-Works for any genome size: viruses (~190 kb) to large genomes (gigabases, e.g., plants, vertebrates).
+Works for any genome size: viruses to large genomes (gigabases, e.g., plants, vertebrates).
 
 ---
 
