@@ -222,16 +222,6 @@ rm -f  results/sample/sample_assembly_report.html
 
 ## Typical genome sizes for reference
 
-| Organism | Genome size |
-|----------|-------------|
-| ASFV, influenza | 190 kb, 13 kb |
-| SARS-CoV-2 | 29.9 kb |
-| *E. coli* | 4.6 Mb |
-| *Arabidopsis* | 135 Mb |
-| *Drosophila* | 140 Mb |
-| Human | 3.2 Gb |
-| Wheat | 17 Gb |
-
 Pass `-g` / `--genome_size` matching your organism. This helps Shovill estimate coverage and optimize assembly parameters.
 
 ---
