@@ -395,60 +395,68 @@ process REPORT {
     output:
     path "${sample_id}_assembly_report.html", emit: report
 
-    script:
-    """
+    shell:
+    '''
     # Calculate assembly statistics
-    CONSENSUS_LEN=\$(grep -v ">" ${consensus} | tr -d '\\n' | wc -c)
-    CONSENSUS_GC=\$(grep -v ">" ${consensus} | tr -d '\\n' | awk '{g=gsub(/[GCgc]/,""); t=length(\$0); printf "%.1f", (g/t)*100}')
-    CONSENSUS_N=\$(grep -v ">" ${consensus} | tr -cd 'N' | wc -c)
+    CONSENSUS_LEN=$(grep -v ">" !{consensus} | tr -d '\n' | wc -c)
+    CONSENSUS_GC=$(grep -v ">" !{consensus} | tr -d '\n' | awk '{g=gsub(/[GCgc]/,""); t=length($0); printf "%.1f", (g/t)*100}')
+    CONSENSUS_N=$(grep -v ">" !{consensus} | tr -cd 'N' | wc -c)
     
     # Calculate coverage statistics
-    AVG_DEPTH=\$(awk '{sum+=\$3; n++} END {printf "%.1f", sum/n}' ${depth})
-    MIN_DEPTH=\$(awk 'NR==1{m=\$3} \$3<m{m=\$3} END{print m}' ${depth})
-    MAX_DEPTH=\$(awk 'BEGIN{m=0} \$3>m{m=\$3} END{print m}' ${depth})
-    COVERED_PCT=\$(awk -v len="\$CONSENSUS_LEN" '\$3>0{n++} END{printf "%.1f", (n/len)*100}' ${depth})
+    AVG_DEPTH=$(awk '{sum+=$3; n++} END {printf "%.1f", sum/n}' !{depth})
+    MIN_DEPTH=$(awk 'NR==1{m=$3} $3<m{m=$3} END{print m}' !{depth})
+    MAX_DEPTH=$(awk 'BEGIN{m=0} $3>m{m=$3} END{print m}' !{depth})
+    COVERED_PCT=$(awk -v len="$CONSENSUS_LEN" '$3>0{n++} END{printf "%.1f", (n/len)*100}' !{depth})
 
     # Generate HTML report
-    cat > ${sample_id}_assembly_report.html << 'EOFHTML'
-<!DOCTYPE html>
+    python3 << 'EOFPYTHON'
+import datetime
+
+sample_id = "!{sample_id}"
+consensus_len = int("$CONSENSUS_LEN") if "$CONSENSUS_LEN" else 0
+consensus_gc = float("$CONSENSUS_GC") if "$CONSENSUS_GC" else 0
+consensus_n = int("$CONSENSUS_N") if "$CONSENSUS_N" else 0
+avg_depth = float("$AVG_DEPTH") if "$AVG_DEPTH" else 0
+min_depth = int("$MIN_DEPTH") if "$MIN_DEPTH" else 0
+max_depth = int("$MAX_DEPTH") if "$MAX_DEPTH" else 0
+covered_pct = float("$COVERED_PCT") if "$COVERED_PCT" else 0
+
+html = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Genome Assembly Report — ${sample_id}</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<title>Genome Assembly Report — {sample_id}</title>
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-         background: #f0f4f8; color: #2d3748; }
-  header { background: linear-gradient(135deg, #1a365d 0%, #2b6cb0 100%);
-            color: white; padding: 28px 40px; }
-  header h1 { font-size: 24px; font-weight: 700; }
-  header p  { font-size: 13px; opacity: .8; margin-top: 4px; }
-  .container { max-width: 1200px; margin: 0 auto; padding: 28px 20px; }
-  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
-  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-bottom: 20px; }
-  .grid-5 { display: grid; grid-template-columns: repeat(5,1fr); gap: 16px; margin-bottom: 20px; }
-  .card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
-  .card h2 { font-size: 14px; font-weight: 600; color: #718096; text-transform: uppercase; margin-bottom: 14px; }
-  .stat-card { background: white; border-radius: 12px; padding: 18px; box-shadow: 0 1px 3px rgba(0,0,0,.08); text-align: center; }
-  .stat-card .val { font-size: 28px; font-weight: 700; color: #2b6cb0; }
-  .stat-card .lbl { font-size: 12px; color: #718096; margin-top: 4px; }
-  .stat-card.green .val { color: #276749; }
-  .stat-card.red .val { color: #c53030; }
-  table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  th { background: #ebf4ff; padding: 9px 12px; text-align: left; font-weight: 600; color: #2b6cb0; border-bottom: 2px solid #bee3f8; }
-  td { padding: 8px 12px; border-bottom: 1px solid #e2e8f0; }
-  .section-title { font-size: 18px; font-weight: 700; color: #1a365d; margin: 28px 0 12px; padding-left: 12px; border-left: 4px solid #2b6cb0; }
-  .chart-wrap { position: relative; height: 300px; }
-  footer { text-align: center; padding: 24px; font-size: 12px; color: #a0aec0; }
+  * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+  body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+         background: #f0f4f8; color: #2d3748; }}
+  header {{ background: linear-gradient(135deg, #1a365d 0%, #2b6cb0 100%);
+            color: white; padding: 28px 40px; }}
+  header h1 {{ font-size: 24px; font-weight: 700; }}
+  header p {{ font-size: 13px; opacity: .8; margin-top: 4px; }}
+  .container {{ max-width: 1200px; margin: 0 auto; padding: 28px 20px; }}
+  .grid-5 {{ display: grid; grid-template-columns: repeat(5,1fr); gap: 16px; margin-bottom: 20px; }}
+  .grid-3 {{ display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-bottom: 20px; }}
+  .card {{ background: white; border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }}
+  .card h2 {{ font-size: 14px; font-weight: 600; color: #718096; text-transform: uppercase; margin-bottom: 14px; }}
+  .stat-card {{ background: white; border-radius: 12px; padding: 18px; box-shadow: 0 1px 3px rgba(0,0,0,.08); text-align: center; }}
+  .stat-card .val {{ font-size: 28px; font-weight: 700; color: #2b6cb0; }}
+  .stat-card .lbl {{ font-size: 12px; color: #718096; margin-top: 4px; }}
+  .stat-card.green .val {{ color: #276749; }}
+  .stat-card.red .val {{ color: #c53030; }}
+  table {{ width: 100%; border-collapse: collapse; font-size: 13px; }}
+  th {{ background: #ebf4ff; padding: 9px 12px; text-align: left; font-weight: 600; color: #2b6cb0; border-bottom: 2px solid #bee3f8; }}
+  td {{ padding: 8px 12px; border-bottom: 1px solid #e2e8f0; }}
+  .section-title {{ font-size: 18px; font-weight: 700; color: #1a365d; margin: 28px 0 12px; padding-left: 12px; border-left: 4px solid #2b6cb0; }}
+  footer {{ text-align: center; padding: 24px; font-size: 12px; color: #a0aec0; }}
 </style>
 </head>
 <body>
 
 <header>
-  <h1>🧬 Genome Assembly Report — ${sample_id}</h1>
-  <p>Generated: \$(date '+%Y-%m-%d %H:%M:%S') | Pipeline: FASTP → bwa-mem2 → Shovill/SPAdes → RagTag → Pilon</p>
+  <h1>🧬 Genome Assembly Report — {sample_id}</h1>
+  <p>Generated: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | Pipeline: FASTP → bwa-mem2 → Shovill/SPAdes → RagTag → Pilon</p>
 </header>
 
 <div class="container">
@@ -456,23 +464,23 @@ process REPORT {
   <p class="section-title">Assembly Summary</p>
   <div class="grid-5">
     <div class="stat-card green">
-      <div class="val">${CONSENSUS_LEN:0:20}</div>
+      <div class="val">{consensus_len:,}</div>
       <div class="lbl">Consensus Length (bp)</div>
     </div>
     <div class="stat-card green">
-      <div class="val">${AVG_DEPTH}×</div>
+      <div class="val">{avg_depth:.1f}×</div>
       <div class="lbl">Average Coverage Depth</div>
     </div>
     <div class="stat-card green">
-      <div class="val">${CONSENSUS_GC}%</div>
+      <div class="val">{consensus_gc:.1f}%</div>
       <div class="lbl">GC Content</div>
     </div>
     <div class="stat-card red">
-      <div class="val">${CONSENSUS_N}</div>
+      <div class="val">{consensus_n}</div>
       <div class="lbl">Remaining Ns</div>
     </div>
     <div class="stat-card green">
-      <div class="val">${COVERED_PCT}%</div>
+      <div class="val">{covered_pct:.1f}%</div>
       <div class="lbl">Breadth of Coverage</div>
     </div>
   </div>
@@ -481,15 +489,15 @@ process REPORT {
   <div class="grid-3">
     <div class="card">
       <h2>Min Depth</h2>
-      <div style="font-size: 24px; font-weight: 700; color: #c53030;">${MIN_DEPTH}×</div>
+      <div style="font-size: 24px; font-weight: 700; color: #c53030;">{min_depth}×</div>
     </div>
     <div class="card">
       <h2>Max Depth</h2>
-      <div style="font-size: 24px; font-weight: 700; color: #276749;">${MAX_DEPTH}×</div>
+      <div style="font-size: 24px; font-weight: 700; color: #276749;">{max_depth}×</div>
     </div>
     <div class="card">
       <h2>Avg Depth</h2>
-      <div style="font-size: 24px; font-weight: 700; color: #2b6cb0;">${AVG_DEPTH}×</div>
+      <div style="font-size: 24px; font-weight: 700; color: #2b6cb0;">{avg_depth:.1f}×</div>
     </div>
   </div>
 
@@ -502,31 +510,31 @@ process REPORT {
       </tr>
       <tr>
         <td>Consensus Length</td>
-        <td>${CONSENSUS_LEN} bp</td>
+        <td>{consensus_len:,} bp</td>
       </tr>
       <tr>
         <td>GC Content</td>
-        <td>${CONSENSUS_GC}%</td>
+        <td>{consensus_gc:.1f}%</td>
       </tr>
       <tr>
         <td>Remaining Ns</td>
-        <td>${CONSENSUS_N}</td>
+        <td>{consensus_n}</td>
       </tr>
       <tr>
         <td>Min Depth</td>
-        <td>${MIN_DEPTH}×</td>
+        <td>{min_depth}×</td>
       </tr>
       <tr>
         <td>Max Depth</td>
-        <td>${MAX_DEPTH}×</td>
+        <td>{max_depth}×</td>
       </tr>
       <tr>
         <td>Average Depth</td>
-        <td>${AVG_DEPTH}×</td>
+        <td>{avg_depth:.1f}×</td>
       </tr>
       <tr>
         <td>Breadth of Coverage</td>
-        <td>${COVERED_PCT}%</td>
+        <td>{covered_pct:.1f}%</td>
       </tr>
     </table>
   </div>
@@ -540,8 +548,12 @@ process REPORT {
 
 </body>
 </html>
-EOFHTML
-    """
+"""
+
+with open("!{sample_id}_assembly_report.html", "w") as f:
+    f.write(html)
+EOFPYTHON
+    '''
 }
 
 // ---------------------------------------------------------------------------
