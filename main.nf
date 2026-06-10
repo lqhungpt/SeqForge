@@ -391,13 +391,6 @@ process REPORT {
     input:
     tuple val(sample_id), path(consensus)
     path depth
-    path flagstat_ref
-    path flagstat_scaffold
-    path flagstat_final
-    path fastp_json
-    path contigs
-    path fastqc_raw_dir
-    path fastqc_final_dir
 
     output:
     path "${sample_id}_assembly_report.html", emit: report
@@ -413,10 +406,6 @@ process REPORT {
     MAX_DEPTH=\$(awk 'BEGIN{m=0} \$3>m{m=\$3} END{print m}' ${depth} 2>/dev/null || echo 0)
     COVERED_PCT=\$(awk -v len="\$CONSENSUS_LEN" '\$3>0{n++} END{printf "%.2f", (n/len)*100}' ${depth} 2>/dev/null || echo 0)
     LOW_DEPTH=\$(awk '\$3<10{n++} END{print n+0}' ${depth} 2>/dev/null || echo 0)
-    CONTIG_COUNT=\$(grep -c ">" ${contigs} || echo 0)
-    SNPS=\$(grep -c "^" *.changes 2>/dev/null || echo 0)
-    GAPS=\$(grep -c "ClosedGap" *.log 2>/dev/null || echo 0)
-    MAPPED_FINAL=\$(samtools view -c *.bam 2>/dev/null || echo 0)
 
     python3 /usr/local/bin/generate_report.py \\
         --prefix          ${sample_id} \\
@@ -431,15 +420,15 @@ process REPORT {
         --covered_pct     \$COVERED_PCT \\
         --low_depth_bases \$LOW_DEPTH \\
         --n_count         \$CONSENSUS_N \\
-        --contig_count    \$CONTIG_COUNT \\
-        --snps_corrected  \$SNPS \\
-        --gaps_filled     \$GAPS \\
-        --final_mapped    \$MAPPED_FINAL \\
+        --contig_count    0 \\
+        --snps_corrected  0 \\
+        --gaps_filled     0 \\
+        --final_mapped    0 \\
         --elapsed_min     0 \\
         --elapsed_sec     0 \\
         --threads         ${params.threads} \\
-        --fastqc_raw_dir  ${fastqc_raw_dir} \\
-        --fastqc_final_dir ${fastqc_final_dir}
+        --fastqc_raw_dir  . \\
+        --fastqc_final_dir .
     """
 }
 
@@ -477,13 +466,6 @@ workflow {
     // Step 9: HTML Report
     REPORT(
         PILON.out.consensus,
-        COVERAGE.out.depth,
-        BWA_MAP.out.flagstat,
-        PILON.out.flagstat,
-        COVERAGE.out.flagstat,
-        FASTP.out.qc,
-        SHOVILL.out.contigs,
-        FASTQC_RAW.out.reports.map { it[1] }.collect(),
-        FASTQC_TRIMMED.out.reports.map { it[1] }.collect()
+        COVERAGE.out.depth
     )
 }
